@@ -1,0 +1,34 @@
+version: "3.2"
+
+services:
+  python.app:
+    image: "anaconda"
+    ports:
+      - "8888:8888"
+    network_mode: 'host'
+    volumes:
+      - type: bind
+        source: ./
+        target: /home/workspace
+  database:
+    image: postgres:9.6
+    container_name: "postgres"
+    environment:
+      - POSTGRES_DB=
+      - POSTGRES_USER=
+      - TZ=GMT
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    ports:
+      - 5432:5432
+  metabase:
+    image: metabase
+    environment:
+      - MB_DB_TYPE=postgres
+      - MB_DB_DBNAME=metabase
+      - MB_DB_PORT=5432
+      - MB_DB_USER=<username>
+      - MB_DB_PASS=<password>
+      - MB_DB_HOST=my-database-host
+    ports:
+      - 3000:3000
