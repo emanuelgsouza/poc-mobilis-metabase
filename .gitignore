@@ -120,3 +120,4 @@ dmypy.json
 
 # reports data
 reports/*.csv
+notebooks/*
