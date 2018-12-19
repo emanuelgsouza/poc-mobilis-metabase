@@ -1,5 +1,6 @@
 import pandas as pd
 import uuid
+from datetime import datetime
 
 transaction_df_props = [
   'uuid',
@@ -61,6 +62,13 @@ def drop_columns(df, columns=['date']):
   return dfl
 
 
+def clean_data(df):
+  df.loc[:, 'value'] = df['value'].apply(lambda x : x.replace('R$', ''))
+  df.loc[:, 'created_at'] = df['created_at'].apply(lambda x : datetime.strptime(x, '%d %b %Y'))
+
+  return df
+
+
 def process_csv(df):
   print('Init process csv file')
 
@@ -78,5 +86,11 @@ def process_csv(df):
 
   print('Set uuid column')
   df = set_uuid_column(df=df)
+
+  print('Clean data')
+  df = clean_data(df=df)
+
+  print('Ordering columns')
+  df = df[['uuid', 'description', 'created_at', 'value', 'category', 'account']]
 
   df.to_csv('data/raw.csv', index=False)
