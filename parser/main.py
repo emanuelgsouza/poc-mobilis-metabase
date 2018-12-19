@@ -1,17 +1,7 @@
 import pandas as pd
 import uuid
 from datetime import datetime
-
-transaction_df_props = [
-  'uuid',
-  'created_at',
-  'month',
-  'year',
-  'description',
-  'value',
-  'category',
-  'account'
-]
+import psycopg2
 
 
 def set_uuid_column(df):
@@ -94,3 +84,27 @@ def process_csv(df):
   df = df[['uuid', 'description', 'created_at', 'value', 'category', 'account']]
 
   df.to_csv('data/raw.csv', index=False)
+
+  print('Execute statements at database')
+  # set here, the same variables at docker-compose database service
+  conn = psycopg2.connect("host=localhost dbname= user=")
+  cur = conn.cursor()
+  cur.execute("""
+      drop table if exists transactions;
+
+      create table if not exists transactions (
+          uuid uuid,
+          description varchar,
+          created_at date,
+          value numeric(15, 2),
+          category varchar,
+          account varchar
+      );
+  """)
+  conn.commit()
+
+  with open('data/raw.csv', 'r') as f:
+      next(f)  # Skip the header row.
+      cur.copy_from(f, 'transactions', sep=',')
+      
+  conn.commit()
