@@ -83,6 +83,7 @@ def process_csv(df):
   print('Ordering columns')
   df = df[['uuid', 'description', 'created_at', 'value', 'category', 'account']]
 
+  print('Save data to raw.csv')
   df.to_csv('data/raw.csv', index=False)
 
   print('Execute statements at database')
@@ -105,6 +106,7 @@ def process_csv(df):
 
   with open('data/raw.csv', 'r') as f:
       next(f)  # Skip the header row.
+      print('Save data to database')
       cur.copy_from(f, 'transactions', sep=',')
       
   conn.commit()
