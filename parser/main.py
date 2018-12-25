@@ -3,6 +3,8 @@ import uuid
 from datetime import datetime
 import psycopg2
 
+CSV_FILE_PATH = 'data/raw.csv'
+
 
 def set_uuid_column(df):
   dfl = df.copy()
@@ -53,11 +55,50 @@ def drop_columns(df, columns=['date']):
 
 
 def clean_data(df):
-  df.loc[:, 'value'] = df['value'].apply(lambda x : x.replace('R$', ''))
-  df.loc[:, 'created_at'] = df['created_at'].apply(lambda x : datetime.strptime(x, '%d %b %Y'))
+  dfl = df.copy()
+  dfl.loc[:, 'value'] = dfl['value'].apply(lambda x : float(x.replace('R$', '')))
+  dfl.loc[:, 'created_at'] = dfl['created_at'].apply(lambda x : datetime.strptime(x, '%d %b %Y'))
 
+  return dfl
+
+
+def set_transaction_type_column(df):
+  dfl = df.copy()
+  dfl.loc[:, 'transaction_type'] = dfl['value'].map(lambda x : 'S' if x < 0 else 'E')
+  return dfl
+
+
+def process_value_column(df):
+  dfl = df.copy()
+  df.loc[:, 'value'] = dfl['value'].map(lambda x : x * -1 if x < 0 else x)
   return df
 
+
+def process_database(csv_path):
+  # set here, the same variables at docker-compose database service
+  conn = psycopg2.connect("host=localhost dbname= user=")
+  cur = conn.cursor()
+  cur.execute("""
+      drop table if exists transactions;
+
+      create table if not exists transactions (
+          uuid uuid,
+          description varchar,
+          created_at date,
+          value numeric(15, 2),
+          category varchar,
+          account varchar,
+          trasaction_type varchar
+      );
+  """)
+  conn.commit()
+
+  with open(csv_path, 'r') as f:
+      next(f)  # Skip the header row.
+      print('Save data to database')
+      cur.copy_from(f, 'transactions', sep=',')
+      
+  conn.commit()
 
 def process_csv(df):
   print('Init process csv file')
@@ -80,33 +121,17 @@ def process_csv(df):
   print('Clean data')
   df = clean_data(df=df)
 
+  print('Set transaction type column')
+  df = set_transaction_type_column(df=df)
+
+  print('Process value column')
+  df = process_value_column(df=df)
+
   print('Ordering columns')
-  df = df[['uuid', 'description', 'created_at', 'value', 'category', 'account']]
+  df = df[['uuid', 'description', 'created_at', 'value', 'category', 'account', 'transaction_type']]
 
   print('Save data to raw.csv')
-  df.to_csv('data/raw.csv', index=False)
+  df.to_csv(CSV_FILE_PATH, index=False)
 
   print('Execute statements at database')
-  # set here, the same variables at docker-compose database service
-  conn = psycopg2.connect("host=localhost dbname= user=")
-  cur = conn.cursor()
-  cur.execute("""
-      drop table if exists transactions;
-
-      create table if not exists transactions (
-          uuid uuid,
-          description varchar,
-          created_at date,
-          value numeric(15, 2),
-          category varchar,
-          account varchar
-      );
-  """)
-  conn.commit()
-
-  with open('data/raw.csv', 'r') as f:
-      next(f)  # Skip the header row.
-      print('Save data to database')
-      cur.copy_from(f, 'transactions', sep=',')
-      
-  conn.commit()
+  process_database(csv_path=CSV_FILE_PATH)
