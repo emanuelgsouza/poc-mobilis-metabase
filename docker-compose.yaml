@@ -1,15 +1,6 @@
 version: "3.2"
 
 services:
-  python.app:
-    image: "anaconda"
-    ports:
-      - "8888:8888"
-    network_mode: 'host'
-    volumes:
-      - type: bind
-        source: ./
-        target: /home/workspace
   database:
     image: postgres:9.6
     container_name: "postgres"
